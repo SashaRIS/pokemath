@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ПокеМатематика</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <h1>ПокеМатематика</h1>
+      <p>Приклади до 20. Відкрий усіх 20 покемонів.</p>
+    </header>
+
+    <section class="progress-wrap">
+      <div class="progress-label">
+        <span id="progressText">Відкрито 0 / 20</span>
+        <button id="resetProgressBtn" type="button" class="secondary">Скинути прогрес</button>
+      </div>
+      <div class="progress-track" aria-hidden="true">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <div class="left-pane">
+        <section class="game-card">
+          <p id="status" class="status">Завантажую дані покемонів...</p>
+          <div id="questionBox" class="question" aria-live="polite">?</div>
+          <div id="answersGrid" class="answers-grid"></div>
+        </section>
+
+        <section id="revealSection" class="reveal hidden">
+          <h2 id="revealTitle"></h2>
+          <img id="revealImage" alt="Відкритий покемон">
+          <p id="revealHint">Слухай українську назву покемона...</p>
+          <button id="nextBtn" type="button" disabled>Далі</button>
+        </section>
+      </div>
+
+      <section class="collection">
+        <h2>Колекція</h2>
+        <div id="collectionGrid" class="collection-grid"></div>
+      </section>
+    </section>
+  </main>
+
+  <section id="victoryOverlay" class="victory-overlay hidden" aria-live="assertive">
+    <img id="victoryImage" alt="Покемон перемоги">
+    <h2>Перемога! Ти відкрив усіх покемонів!</h2>
+    <p>Екран показує фінального покемона, поки звучить його голос.</p>
+    <button id="playAgainBtn" type="button" class="hidden">Грати ще раз</button>
+  </section>
+
+  <script src="game.js"></script>
+</body>
+</html>
