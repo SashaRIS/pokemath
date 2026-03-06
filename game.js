@@ -55,14 +55,6 @@ function getImageUrl(id) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 }
 
-function getCryFallbackUrl(id) {
-  return `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`;
-}
-
-function capName(name) {
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -214,27 +206,6 @@ function startRound() {
   lockAnswers(false);
 }
 
-function playAudio(url, timeoutMs = 1800) {
-  return new Promise((resolve) => {
-    if (!url) {
-      resolve(false);
-      return;
-    }
-    let settled = false;
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(value);
-    };
-    const audio = new Audio(url);
-    const timer = setTimeout(() => finish(false), timeoutMs);
-    audio.addEventListener("ended", () => finish(true), { once: true });
-    audio.addEventListener("error", () => finish(false), { once: true });
-    audio.play().catch(() => finish(false));
-  });
-}
-
 function speakWithBrowser(text) {
   return new Promise((resolve) => {
     if (!("speechSynthesis" in window)) {
@@ -269,8 +240,7 @@ function speakWithBrowser(text) {
 
 async function playPokemonName(pokemon) {
   const spoken = pokemon.ukName || pokemon.name;
-  const played = await playAudio(pokemon.cry, 1800);
-  if (!played && spoken) {
+  if (spoken) {
     await speakWithBrowser(spoken);
   }
 }
@@ -341,30 +311,16 @@ function onAnswer(value) {
 }
 
 async function loadPokemons() {
-  const idsList = Array.from({ length: POKE_COUNT }, (_, i) => i + 1);
-  const requests = idsList.map((id) =>
-    fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
-      .then((r) => r.json())
-      .then((data) => ({
-        id,
-        name: capName(data.name),
-        ukName: UKRAINIAN_NAMES[id] || capName(data.name),
-        apiName: data.name,
-        image: getImageUrl(id),
-        cry: data?.cries?.latest || getCryFallbackUrl(id),
-      }))
-      .catch(() => ({
-        id,
-        name: `Pokemon #${id}`,
-        ukName: `Покемон ${id}`,
-        apiName: `pokemon ${id}`,
-        image: getImageUrl(id),
-        cry: getCryFallbackUrl(id),
-      }))
-  );
-  const pokemons = await Promise.all(requests);
-  pokemons.sort((a, b) => a.id - b.id);
-  return pokemons;
+  return Array.from({ length: POKE_COUNT }, (_, i) => {
+    const id = i + 1;
+    const ukName = UKRAINIAN_NAMES[id] || `Покемон ${id}`;
+    return {
+      id,
+      name: ukName,
+      ukName,
+      image: getImageUrl(id),
+    };
+  });
 }
 
 async function init() {
