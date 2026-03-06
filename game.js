@@ -59,10 +59,6 @@ function getCryFallbackUrl(id) {
   return `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`;
 }
 
-function getNameTtsUrl(name) {
-  return `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=uk&q=${encodeURIComponent(name)}`;
-}
-
 function capName(name) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
@@ -218,43 +214,63 @@ function startRound() {
   lockAnswers(false);
 }
 
-function playAudio(url) {
+function playAudio(url, timeoutMs = 1800) {
   return new Promise((resolve) => {
     if (!url) {
       resolve(false);
       return;
     }
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
     const audio = new Audio(url);
-    audio.addEventListener("ended", () => resolve(true), { once: true });
-    audio.addEventListener("error", () => resolve(false), { once: true });
-    audio.play().catch(() => resolve(false));
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    audio.addEventListener("ended", () => finish(true), { once: true });
+    audio.addEventListener("error", () => finish(false), { once: true });
+    audio.play().catch(() => finish(false));
   });
 }
 
 function speakWithBrowser(text) {
   return new Promise((resolve) => {
     if (!("speechSynthesis" in window)) {
-      resolve();
+      resolve(false);
       return;
     }
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "uk-UA";
     utterance.rate = 0.95;
     utterance.pitch = 1.1;
-    utterance.addEventListener("end", () => resolve(), { once: true });
-    utterance.addEventListener("error", () => resolve(), { once: true });
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    utterance.addEventListener("end", () => finish(true), { once: true });
+    utterance.addEventListener("error", () => finish(false), { once: true });
+    const timer = setTimeout(() => {
+      window.speechSynthesis.cancel();
+      finish(false);
+    }, 1800);
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      finish(false);
+    }
   });
 }
 
 async function playPokemonName(pokemon) {
   const spoken = pokemon.ukName || pokemon.name;
-  const played = await Promise.race([
-    playAudio(pokemon.nameAudio),
-    new Promise((resolve) => setTimeout(() => resolve(false), 2200)),
-  ]);
-  if (!played) {
+  const played = await playAudio(pokemon.cry, 1800);
+  if (!played && spoken) {
     await speakWithBrowser(spoken);
   }
 }
@@ -280,17 +296,18 @@ async function revealPokemon() {
   ids.revealTitle.textContent = `${pokemon.ukName} відкрито!`;
   ids.revealImage.src = pokemon.image;
   ids.revealHint.textContent = "Слухай українську назву покемона...";
-  ids.nextBtn.disabled = true;
-
-  await playPokemonName(pokemon);
+  ids.nextBtn.disabled = false;
 
   if (state.discovered.size === POKE_COUNT) {
     showVictory(pokemon);
     return;
   }
 
-  ids.revealHint.textContent = "Готово! Натисни «Далі».";
-  ids.nextBtn.disabled = false;
+  playPokemonName(pokemon).finally(() => {
+    if (!ids.revealSection.classList.contains("hidden")) {
+      ids.revealHint.textContent = "Готово! Натисни «Далі».";
+    }
+  });
 }
 
 async function showVictory(pokemon) {
@@ -335,7 +352,6 @@ async function loadPokemons() {
         apiName: data.name,
         image: getImageUrl(id),
         cry: data?.cries?.latest || getCryFallbackUrl(id),
-        nameAudio: getNameTtsUrl(UKRAINIAN_NAMES[id] || capName(data.name)),
       }))
       .catch(() => ({
         id,
@@ -344,7 +360,6 @@ async function loadPokemons() {
         apiName: `pokemon ${id}`,
         image: getImageUrl(id),
         cry: getCryFallbackUrl(id),
-        nameAudio: getNameTtsUrl(`Покемон ${id}`),
       }))
   );
   const pokemons = await Promise.all(requests);
